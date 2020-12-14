@@ -1,0 +1,144 @@
+---
+title: "Data_clean"
+author: "Khalid"
+date: "11/17/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(readxl)
+library(janitor)
+library(stringr)
+library(rstanarm)
+library(shiny)
+library(ggplot2)
+
+#Loaded Packages needed for both Data Wrangling and Shiny App
+
+```
+
+```{r}
+# I read my dataset from the PGA tour dataset and changed the col that observed their annual money from a col_character with a dollar sign to a col_numberic without a dollar sign. I called the new col "Earnings and removed the money col
+
+df <- read_csv("raw_data/pgaTourData.csv") %>% 
+  mutate(Earnings = as.numeric(gsub("," , "" , (str_sub(Money, 2 ))))) %>% 
+  select(-Money)
+
+#I read my dataset from PGA tour data from 2010-2018 about all professional golfers. I used "Clean_names(), to simplify the col names and I mutated the "money" column to get rid of the dollar sign and commas. 
+
+
+dirtygolf <- read_csv("raw_data/pgaTourData.csv") %>% 
+  clean_names() %>% 
+  mutate(earnings = as.numeric(gsub("," , "" , (str_sub(money, 2 ))))) %>% 
+  select(-money)
+
+
+
+#This Data set takes the aveage of several golf statistics for many notable players over the years 2010-2018 while playing professional PGA tournaments. I grouped each of the golfer's avereages together in the dataset "by_name" so that I could evaluate the whole period summarised. "by_year" lets me take the annual trends and account for several unknowns that imapct results
+
+
+#I grouped the golfers over the period 2010-2018 in order to average their statistics over the time period, na.rm = TRUE makes sure the mean function doesn't take into account the empty observations where golfers recorded nothing, not where they recorded a zero.
+
+golfers <- dirtygolf %>% 
+  group_by(player_name) %>% 
+  summarise(rounds = mean(rounds, na.rm = TRUE),
+            fairway_percentage = mean(fairway_percentage, na.rm = TRUE),
+            avg_distance = mean(avg_distance, na.rm = TRUE),
+            gir = mean(gir, na.rm = TRUE),
+            average_putts = mean(average_putts, na.rm = TRUE),
+            average_scrambling = mean(average_scrambling, na.rm = TRUE),
+            average_score = mean(average_score, na.rm = TRUE),
+            points = mean(points, na.rm = TRUE),
+            wins = mean(wins, na.rm = TRUE),
+            top_10 = mean(top_10, na.rm = TRUE),
+            average_sg_total = mean(average_sg_total, na.rm = TRUE),
+            average_putts = mean(average_putts, na.rm = TRUE),
+            sg_ott = mean(sg_ott, na.rm = TRUE),
+            sg_apr = mean(sg_apr, na.rm = TRUE),
+            sg_arg = mean(sg_arg, na.rm = TRUE),
+            earnings = mean(earnings, na.rm = TRUE),
+            .groups = "keep" )
+golfers
+
+
+
+# I took the top 10 golfers based on the "wins" col
+top_golfers <- golfers %>% 
+  arrange(desc(wins)) %>% 
+  head(n=10)
+
+top_golfers
+
+
+#I need a dataset to use for the drop down selectInput section of my ui that displays the col and the player names in the appropriate format. I will get rid of the columns I feel won't be relevant to the audience
+
+formatted <- df %>% 
+  select(-gir,-"SG:OTT", -"SG:APR",-"SG:ARG") %>% 
+  mutate("Average Distance" = df$`Avg Distance`) 
+
+formatted
+
+#A scatter plot comparing the average distance off the tee box to the percentage of fairways hit from the tee box. potentially interactive by both player name, but I've put it as a facet_wrap here in the mean time. This will be the format for my interactive regression plot about how to get better at golf
+top_golfers%>% 
+  ggplot(aes(x = avg_distance, y = fairway_percentage))+
+  geom_col()+
+  facet_wrap(~ player_name)+
+  theme_classic()+
+  geom_smooth(alpha = 0.2, method = "lm")+
+  labs(title = "Fairway Percentage vs Distance",
+       subtitle = "Does a Professional Golfer's Average Distance Affect Their Accuracy?",
+       x = "Average Drive Distance (yds)",
+       y = "Fairway Percentage")
+
+
+
+#a scatterplot comparing several variables to earninigs. I need to make the x variable interactive for my regression model
+dirtygolf %>% 
+  ggplot(aes(x = avg_distance, y = earnings, alpha = .2)) +
+  geom_point()+
+  facet_wrap(~year)+
+  theme_minimal()+
+  geom_smooth(method = "lm", color = "dark green")+
+  theme(legend.position = "none")+
+  labs(title = "Does Hitting your Drive Further Get You More Money?",
+       subtitle = "Average Drive Distance Compared to Annual Earnings",
+       x = "Average Distance",
+       y = "Annual Earnings ($)")+
+  scale_y_continuous(breaks = c(0,4000000,8000000), labels = c("0", "4mil", "8mil"), limits = c(0,10000000))
+  
+#plot showing how much each player made, Potentially interactive by year
+
+dirtygolf %>% 
+  ggplot(aes(x = player_name, y = earnings))+
+  geom_col(fill = "dark green")+
+  theme(axis.text = element_text(angle = 90))+
+  labs(x = "Player Name",
+       y = "Score",
+       title = "How's Your Game?",
+       subtitle = "The Best Players and Their Average Scores")
+
+#My Predictive Model
+#golf_model_dist <- stan_glm(data = top_golfers,
+ #                      formula = earnings ~ avg_distance,
+  #                     family = gaussian(),
+   #                    refresh = 0)
+
+#golf_model_acc <- stan_glm(data = top_golfers,
+#                       formula = earnings ~ fairway_percentage,
+ #                      family = gaussian(),
+  #                     refresh = 0)
+
+#print(golf_model_dist)
+#print(golf_model_acc)
+
+  
+
+```
+
+  ~ Rank each player and create comparision data for audience 
+  ~get an additional dataset for demographics / sponsors / nationality
